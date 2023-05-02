@@ -1,0 +1,55 @@
+---
+title: "Statistical Computations and Plotting of Performance"
+author: "Seth Schallies"
+date: "4/26/2023"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(R.matlab)
+library(dplyr)
+
+```
+
+```{r import, include = FALSE}
+performance <- read_csv(file = "/Users/sethschallies/Desktop/PS:NE 329/Experiments/Processed Data/performance_csv.csv")
+```
+
+```{r fixing}
+performance <- performance %>% na.omit()
+performance <- performance %>% slice_tail(n=1786)
+performance_by_trial <- performance %>% group_by(`Trial Number`) %>%
+  summarize(Accuracy = mean(Accuracy)) %>%
+  slice_head(n=240)
+
+performance_by_block <- performance_by_trial %>%
+  mutate(performance_by_trial, block = 1)
+  performance_by_block[81:160,][3] = 2
+  performance_by_block[161:240,][3] = 3
+
+performance_by_block_binned <- aggregate(performance_by_block, by = list(cut(performance_by_block$`Trial Number`, seq(0,240,8))), mean)
+
+
+```
+
+```{r plotting}
+Accuracy_lm <- lm(Accuracy ~ `Trial Number`,  data = performance_by_block)
+Accuracy_coef <- coef(Accuracy_lm)
+ggplot(performance_by_block_binned, mapping = aes(
+  x = `Trial Number`, y = Accuracy, color = block
+  )
+) + 
+  geom_line() + 
+  geom_abline(intercept = Accuracy_coef[1], slope = Accuracy_coef[2], col = 'lightblue') + 
+  geom_vline(xintercept = 80) +
+  geom_vline(xintercept= 160) + 
+  theme(legend.position = 'None') 
+```
+```{r stats}
+stats <- t.test(performance_by_block$Accuracy, mu = .5)
+stats
+```
+
